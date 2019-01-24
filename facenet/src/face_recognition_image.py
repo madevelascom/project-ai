@@ -139,10 +139,10 @@ with tf.Graph().as_default():
                         if HumanNames[best_class_indices[0]] == H_i and best_class_probabilities > 0.30:
                             result_names = HumanNames[best_class_indices[0]]
                             print("Person for face No ",i+1, ' is ', result_names, " with ", best_class_probabilities)
-                            line_res = "Person for face No " + str(i+1)+ ' is '+ result_names+ " with " + str(best_class_probabilities)
+                            line_res = "\nPerson for face No " + str(i+1)+ ' is '+ result_names+ " with " + str(best_class_probabilities[0])
                             log_file.write(str(line_res))
                             cv2.putText(frame, result_names, (text_x, text_y), cv2.FONT_HERSHEY_TRIPLEX,
-                                        3, (0, 0, 255), thickness=1, lineType=1)
+                                        2, (0, 0, 255), thickness=1, lineType=1)
             else:
                 print('Unable to align')
         #cv2.imshow('Image', frame)
