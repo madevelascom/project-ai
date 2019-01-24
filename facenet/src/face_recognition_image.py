@@ -19,10 +19,8 @@ modeldir = 'facenet/src/20180402-114759/'
 classifier_filename = 'facenet/src/20180402-114759/my_classifier.pkl'
 npy=''
 train_img="facenet/dataset/raw"
-filename, file_extension = os.path.splitext(sys.argv[1])
-log_path=filename+'.txt'
+log_path='output/'+(os.path.splitext(os.path.basename(sys.argv[1]))[0])+'.txt'
 
-print(log_path)
 
 log_file = open(log_path, 'w+')
 
@@ -82,7 +80,7 @@ with tf.Graph().as_default():
             bounding_boxes, _ = detect_face.detect_face(frame, minsize, pnet, rnet, onet, threshold, factor)
             nrof_faces = bounding_boxes.shape[0]
             print('Face(s) Detected: %d' % nrof_faces)
-            log_file.write('\nFace(s) Detected: %d' % nrof_faces)
+            log_file.write('\n\nFace(s) Detected: %d ' % nrof_faces)
 
             if nrof_faces > 0:
                 det = bounding_boxes[:, 0:4]
@@ -119,7 +117,7 @@ with tf.Graph().as_default():
                     print("\nFace No "+str(i+1))
                     print(predictions)
 
-                    log_file.write("\nFace No "+str(i+1)+"\n")
+                    log_file.write("\n\nFace No "+str(i+1)+"\n")
                     log_file.write(str(predictions))
 
                     best_class_indices = np.argmax(predictions, axis=1)
@@ -133,7 +131,7 @@ with tf.Graph().as_default():
                     text_x = bb[i][0]
                     text_y = bb[i][3] + 20
                     print('Result Index: ', best_class_indices[0], ' with human name ', HumanNames[best_class_indices[0]], ' with class probability ', best_class_probabilities)
-                    line_res = 'Result Index: '+ str(best_class_indices[0])+ ' with human name ', str(HumanNames[best_class_indices[0]])+ ' with class probability '+ str(best_class_probabilities)
+                    line_res = '\nResult Index: '+ str(best_class_indices[0])+ ' with human name '+ str(HumanNames[best_class_indices[0]])+ ' with class probability '+ str(best_class_probabilities[0])
                     log_file.write(str(line_res))
                     #print(HumanNames)
                     for H_i in HumanNames:
@@ -141,7 +139,7 @@ with tf.Graph().as_default():
                         if HumanNames[best_class_indices[0]] == H_i and best_class_probabilities > 0.30:
                             result_names = HumanNames[best_class_indices[0]]
                             print("Person for face No ",i+1, ' is ', result_names, " with ", best_class_probabilities)
-                            line_res = "Person for face No " + str(i+1)+ ' is '+ result_names+ " with " + best_class_probabilities
+                            line_res = "Person for face No " + str(i+1)+ ' is '+ result_names+ " with " + str(best_class_probabilities)
                             log_file.write(str(line_res))
                             cv2.putText(frame, result_names, (text_x, text_y), cv2.FONT_HERSHEY_TRIPLEX,
                                         3, (0, 0, 255), thickness=1, lineType=1)
