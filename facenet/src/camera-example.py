@@ -57,12 +57,24 @@ def main():
 
     # Create Namelist
     #data_dir="/home/itlgpu/fyk/my-facedata/test"
-    data_dir="facenet/dataset/raw"
-    dataset = facenet.get_dataset(data_dir)
+    #data_dir="facenet/dataset/aligned"
+    #dataset = facenet.get_dataset(data_dir)
     # Create a list of class names
-    class_names = [ cls.name.replace('_', ' ') for cls in dataset]
+    #class_names = [ cls.name.replace('_', ' ') for cls in dataset]
 
-    print('Created name list from dir "%s"' % data_dir)
+    #print('Created name list from dir "%s"' % data_dir)
+
+    train_img="output/faces.txt"
+    f = open(train_img)
+    class_names = []
+    for line in f:
+        line = line.strip()
+        class_names.append(line)
+    # HumanNames = f.readlines()
+    f.close()
+    # HumanNames = os.listdir(train_img)
+    class_names.sort()
+    print(class_names)
 
     
     with tf.Graph().as_default():
@@ -80,8 +92,8 @@ def main():
             # Capture video
             #url = "rtsp://192.168.1.94/11"
             url = "rtsp://192.168.1.94/22"
-            print('Begin to capture video from ' + url)
-            video_capture = cv2.VideoCapture(0)
+            #print('Begin to capture video from ' + url)
+            video_capture = cv2.VideoCapture(0 + cv2.CAP_DSHOW)
 
             if not video_capture.isOpened(): 
                 print ('Can not open the video from ' + url)
@@ -92,68 +104,78 @@ def main():
             count = 0
 
             while True:
-                ret, frame = video_capture.read()
-                
-                if(count%frame_interval == 0): #frame_interval==3, face detection every 3 frames
-  
-                    # Detect Faces  
-                    img = frame
-                    img_size = np.asarray(img.shape)[0:2]
-                    bounding_boxes, _ = align.detect_face.detect_face(img, minsize, pnet, rnet, onet, threshold, factor)
-                    #print('here')
-                    nrof_faces = bounding_boxes.shape[0]#number of faces
-                    print('Faces detected : {}'.format(nrof_faces))
 
-                    #if detected faces num equal zero, failed 
-                    if nrof_faces <= 0:
-                        continue
+                ret = None
+                frame = None
+
+                try:
+                    ret, frame = video_capture.read()
+                except:
+
+                    frame = None
+
+                if (frame is not None):
+                                
+                    if(count%frame_interval == 0): #frame_interval==3, face detection every 3 frames
+      
+                        # Detect Faces  
+                        img = frame
+                        img_size = np.asarray(img.shape)[0:2]
+                        bounding_boxes, _ = align.detect_face.detect_face(img, minsize, pnet, rnet, onet, threshold, factor)
+                        #print('here')
+                        nrof_faces = bounding_boxes.shape[0]#number of faces
+                        print('Faces detected : {}'.format(nrof_faces))
+
+                        #if detected faces num equal zero, failed 
+                        if nrof_faces <= 0:
+                            continue
+                        
+                        img_list = [None] * nrof_faces
+                        for i in range(nrof_faces):
+                            det = np.squeeze(bounding_boxes[i,0:4])
+                            bb = np.zeros(4, dtype=np.int32)
+                            bb[0] = np.maximum(det[0]-margin/2, 0)
+                            bb[1] = np.maximum(det[1]-margin/2, 0)
+                            bb[2] = np.minimum(det[2]+margin/2, img_size[1])
+                            bb[3] = np.minimum(det[3]+margin/2, img_size[0])
+                            cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
+                            aligned = misc.imresize(cropped, (image_size, image_size), interp='bilinear')
+                            prewhitened = facenet.prewhiten(aligned)
+                            img_list[i] = prewhitened
+                        images = np.stack(img_list)
+
+                        # Run forward pass to calculate embeddings
+                        feed_dict = { images_placeholder: images, phase_train_placeholder:False }
+                        emb = sess.run(embeddings, feed_dict=feed_dict)
+                        
+                        # Predict 
+                        predictions = model.predict_proba(emb)
+                        best_class_indices = np.argmax(predictions, axis=1)
+                        best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
+
+                        #print(len(best_class_indices))               
+                        
+                        # Draw face rectangle and put names of detected faces 
+                        index = 0
+                        for face_position in bounding_boxes:
+
+                            face_position=face_position.astype(int)
+                            #if best_class_probabilities[index] > 0.45 :
+                            print('%4d  %s: %.3f' % (index, class_names[best_class_indices[index]], best_class_probabilities[index]))
+
+                            cv2.rectangle(frame, (face_position[0],face_position[1]),(face_position[2], face_position[3]),(0, 255, 0), 2)
+                            cv2.putText(frame, class_names[best_class_indices[index]], (face_position[0],face_position[1]),  cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0,0,255), 1)
+                            index+=1
+     
+                        # Show
+                        cv2.imshow('Video', frame)
+
+                        # Exit 
+                        if cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
                     
-                    img_list = [None] * nrof_faces
-                    for i in range(nrof_faces):
-                        det = np.squeeze(bounding_boxes[i,0:4])
-                        bb = np.zeros(4, dtype=np.int32)
-                        bb[0] = np.maximum(det[0]-margin/2, 0)
-                        bb[1] = np.maximum(det[1]-margin/2, 0)
-                        bb[2] = np.minimum(det[2]+margin/2, img_size[1])
-                        bb[3] = np.minimum(det[3]+margin/2, img_size[0])
-                        cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
-                        aligned = misc.imresize(cropped, (image_size, image_size), interp='bilinear')
-                        prewhitened = facenet.prewhiten(aligned)
-                        img_list[i] = prewhitened
-                    images = np.stack(img_list)
-
-                    # Run forward pass to calculate embeddings
-                    feed_dict = { images_placeholder: images, phase_train_placeholder:False }
-                    emb = sess.run(embeddings, feed_dict=feed_dict)
-                    
-                    # Predict 
-                    predictions = model.predict_proba(emb)
-                    best_class_indices = np.argmax(predictions, axis=1)
-                    best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
-
-                    #print(len(best_class_indices))               
-                    
-                    # Draw face rectangle and put names of detected faces 
-                    index = 0
-                    for face_position in bounding_boxes:
-
-                        face_position=face_position.astype(int)
-                        #if best_class_probabilities[index] > 0.45 :
-                        print('%4d  %s: %.3f' % (index, class_names[best_class_indices[index]], best_class_probabilities[index]))
-
-                        cv2.rectangle(frame, (face_position[0],face_position[1]),(face_position[2], face_position[3]),(0, 255, 0), 2)
-                        cv2.putText(frame, class_names[best_class_indices[index]], (face_position[0],face_position[1]),  cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0,0,255), 1)
-                        index+=1
- 
-                    # Show
-                    cv2.imshow('Video', frame)
-
-                    # Exit 
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-                
-                #print(faces)
-                count+=1  
+                    #print(faces)
+                    count+=1  
 
 
 def parse_arguments(argv):

@@ -36,6 +36,10 @@ import math
 import pickle
 from sklearn.svm import SVC
 
+
+log_path='output/faces.txt'
+log_file = open(log_path, 'w+')
+
 def main(args):
   
     with tf.Graph().as_default():
@@ -64,6 +68,12 @@ def main(args):
             print('Number of classes: %d' % len(dataset))
             print('Number of images: %d' % len(paths))
             
+            for item in dataset:
+                print(item)
+                log_file.write(str(item).split(',')[0]+'\n')
+
+            log_file.close()
+
             # Load the model
             print('Loading feature extraction model')
             facenet.load_model(args.model)

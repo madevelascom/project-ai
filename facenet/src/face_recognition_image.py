@@ -18,7 +18,7 @@ img_path=sys.argv[1]
 modeldir = 'facenet/src/20180402-114759/'
 classifier_filename = 'facenet/src/20180402-114759/my_classifier.pkl'
 npy=''
-train_img="facenet/dataset/raw"
+train_img="output/faces.txt"
 log_path='output/'+(os.path.splitext(os.path.basename(sys.argv[1]))[0])+'.txt'
 
 
@@ -39,7 +39,15 @@ with tf.Graph().as_default():
         image_size = 160
         input_image_size = 160
 
-        HumanNames = os.listdir(train_img)
+
+        f = open(train_img)
+        HumanNames = []
+        for line in f:
+            line = line.strip()
+            HumanNames.append(line)
+        # HumanNames = f.readlines()
+        f.close()
+        # HumanNames = os.listdir(train_img)
         HumanNames.sort()
 
         print('Loading feature extraction model')
@@ -136,13 +144,13 @@ with tf.Graph().as_default():
                     #print(HumanNames)
                     for H_i in HumanNames:
                         # print(H_i)
-                        if HumanNames[best_class_indices[0]] == H_i and best_class_probabilities > 0.30:
+                        if HumanNames[best_class_indices[0]] == H_i and best_class_probabilities > 0.15:
                             result_names = HumanNames[best_class_indices[0]]
                             print("Person for face No ",i+1, ' is ', result_names, " with ", best_class_probabilities)
                             line_res = "\nPerson for face No " + str(i+1)+ ' is '+ result_names+ " with " + str(best_class_probabilities[0])
                             log_file.write(str(line_res))
-                            cv2.putText(frame, result_names, (text_x, text_y), cv2.FONT_HERSHEY_TRIPLEX,
-                                        2, (0, 0, 255), thickness=1, lineType=1)
+                            cv2.putText(frame, result_names, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX,
+                                        1, (0, 0, 255), thickness=1, lineType=1)
             else:
                 print('Unable to align')
         #cv2.imshow('Image', frame)
